@@ -5,7 +5,6 @@ Examples:
 
 ```
 # 0 GPUs, 4 CPU cores, 4GB RAM default
-# 0 GPUs, 4 CPU cores, 4GB RAM default
 narun python mymodel.py
 
 # All options
