@@ -24,6 +24,11 @@ navolume sync source_local_path destination_container_path
 navolume list
 navolume delete myvolumename
 
+# Connect / reconnect to containers
+naconnect list
+naconnect getlog container_name
+naconnect reconnect container_name
+
 Environment Variables:
 	NAUTILUS_YAML
 	NAUTILUS_GPUS
@@ -31,7 +36,7 @@ Environment Variables:
 	NAUTILUS_MEM
 	NAUTLIUS_SYNC
 	NAUTILUS_VOLUME
-	
+
 ```
 
 
