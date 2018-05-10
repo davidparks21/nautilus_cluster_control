@@ -4,55 +4,72 @@
 # This is a shell script for using the Nautilus cluster at https://nautilus.optiputer.net
 #
 
-parse_command_line_parameters()
-
-echo YAML=$YAML GPUS=$GPUS CPUS=$CPUS MEM=$MEM SYNC_FROM=$SYNC_FROM SYNC_TO=$SYNC_TO
-
+#
+# Global script defaults
+#
+DEFAULT_YAML=
+DEFAULT_GPUS=0
+DEFAULT_CPUS=4
+DEFAULT_MEM=4GB
 
 #
 # Functions below implement the various components of the script
-parse_command_line_parameters(){
+#
+parse_command_line_parameters() {
+echo $@
     PARAMS=""
 
     while (( "$#" )); do
-      case "$1" in
-        -y|--yaml)
-          YAML=$2
-          shift 2
-          ;;
-        -g|--gpus)
-          GPUS=$2
-          shift 2
-          ;;
-        -c|--cpus)
-          CPUS=$2
-          shift 2
-          ;;
-        -m|--mem)
-          MEM=$2
-          shift 2
-          ;;
-        -s|--sync)
-          SYNC_FROM=${SYNC_FROM}:${2}
-          SYNC_TO=${SYNC_TO}:${3}
-          shift 3
-          ;;
-        --) # end argument parsing
-          shift
-          break
-          ;;
-        -*|--*=) # unsupported flags
-          echo "Error: Unsupported flag $1" >&2
-          exit 1
-          ;;
-        *) # preserve positional arguments
-          PARAM="$PARAMS $1"
-          shift
-          ;;
-      esac
+        case "$1" in
+            -y|--yaml)
+                YAML=$2
+                shift 2
+                ;;
+            -g|--gpus)
+                GPUS=$2
+                shift 2
+                ;;
+            -c|--cpus)
+                CPUS=$2
+                shift 2
+                ;;
+            -m|--mem)
+                MEM=$2
+                shift 2
+                ;;
+            -s|--sync)
+                SYNC_FROM=${SYNC_FROM}:${2}
+                SYNC_TO=${SYNC_TO}:${3}
+                shift 3
+                ;;
+            --) # end argument parsing
+                shift
+                break
+                ;;
+            -*|--*=) # unsupported flags
+                echo "Error: Unsupported flag $1" >&2
+                exit 1
+                ;;
+            *) # preserve positional arguments
+                PARAM="$PARAMS $1"
+                shift
+                ;;
+        esac
     done
 
     # set positional arguments in their proper place
     eval set -- "$PARAMS"
 
+    echo YAML=$YAML GPUS=$GPUS CPUS=$CPUS MEM=$MEM SYNC_FROM=$SYNC_FROM SYNC_TO=$SYNC_TO
 }
+
+#
+# Main script body
+#
+echo $@
+parse_command_line_parameters
+
+
+echo YAML=$YAML GPUS=$GPUS CPUS=$CPUS MEM=$MEM SYNC_FROM=$SYNC_FROM SYNC_TO=$SYNC_TO
+
+
