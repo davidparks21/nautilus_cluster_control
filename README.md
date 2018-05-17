@@ -10,8 +10,8 @@ narun python mymodel.py
 # All options
 narun \
    --yaml path_to_yaml_file \
-   --gpus 2 \
-   --cpus 8 \
+   --gpu 2 \
+   --cpu 8 \
    --mem 12GB \
    --sync source_local_path destination_container_path \
    --sync 2nd_source 2nd_destination \

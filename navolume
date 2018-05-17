@@ -1,19 +1,18 @@
 #!/usr/bin/env bash
 
 #
+# Documentation at: https://github.com/davidparks21/nautilus_cluster_control
 # This is a shell script for using the Nautilus cluster at https://nautilus.optiputer.net
 #
 
 # TODOs / Issues:
-#   - `narun --gpu` will cause the command line parsing to go into an infinite loop, fix this
+#   - `navolume --anyparam` will cause the command line parsing to go into an infinite loop, fix this
 
 #
 # Global script defaults
 #
-YAML=TODO_ADD_DEFAULT.yaml
-GPU=0
-CPU=4
-MEM=4GB
+VOLUME_NAME=MYVOLUME
+VOLUME_SIZE=20GB
 
 #
 # Functions below implement the various components of the script
@@ -30,19 +29,19 @@ PARAMS=""
 
 while (( "$#" )); do
     case "$1" in
-        -y|--yaml)
+        create)
             YAML=$2
             shift 2
             ;;
-        -g|--gpu)
+        sync)
             GPU=$2
             shift 2
             ;;
-        -c|--cpu)
+        list)
             CPU=$2
             shift 2
             ;;
-        -m|--mem)
+        delete)
             MEM=$2
             shift 2
             ;;

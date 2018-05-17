@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 #
+# Documentation at: https://github.com/davidparks21/nautilus_cluster_control
 # This is a shell script for using the Nautilus cluster at https://nautilus.optiputer.net
 #
 
