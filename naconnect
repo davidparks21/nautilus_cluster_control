@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+
+#
+# Documentation at: https://github.com/davidparks21/nautilus_cluster_control
+# This is a shell script for using the Nautilus cluster at https://nautilus.optiputer.net
+#
+
+# TODOs / Issues:
+#   - same infinite loop issue as with narun
+
+#
+# Global script defaults
+#
+CONTAINER_NAME=my_container
+
+#
+# Functions below implement the various components of the script
+#
+naconnect_list(){
+    echo "TODO - List containers"
+    echo "ARGS: CONTAINER_NAME=${CONTAINER_NAME}"
+}
+naconnect_getlog(){
+    echo "TODO - Get logs"
+    echo "ARGS: CONTAINER_NAME=${CONTAINER_NAME}"
+}
+naconnect_reconnect(){
+    echo "TODO - Reconnect to container"
+    echo "ARGS: CONTAINER_NAME=${CONTAINER_NAME}"
+}
+
+#
+# Command line parsing
+#
+PARAMS=""
+
+while (( "$#" )); do
+    echo $@
+    case "${1,,}" in
+        list)
+            RUN_COMMAND=naconnect_list
+            shift 1
+            ;;
+        getlog)
+            RUN_COMMAND=naconnect_getlog
+            CONTAINER_NAME=$2
+            shift 2
+            ;;
+        reconnect)
+            RUN_COMMAND=naconnect_reconnect
+            CONTAINER_NAME=$2
+            shift 2
+            ;;
+        *) # unsupported option
+            echo "Error: Unsupported option $1" >&2
+            exit 1
+            ;;
+    esac
+done
+
+# set positional arguments in their proper place
+eval set -- "$PARAMS"
+
+$RUN_COMMAND
