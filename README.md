@@ -20,10 +20,10 @@ narun \
    python mymodel.py
 
 # Managing volumes
-navolume create myvolumename 100GB
-navolume sync source_local_path destination_container_path
+navolume create volume_name 100GB
+navolume sync volume_name source_local_path destination_container_path
 navolume list
-navolume delete myvolumename
+navolume delete volume_name
 
 # Connect / reconnect to containers
 naconnect list

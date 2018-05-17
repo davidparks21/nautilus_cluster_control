@@ -11,15 +11,29 @@
 #
 # Global script defaults
 #
-VOLUME_NAME=MYVOLUME
-VOLUME_SIZE=20GB
+VOLUME_NAME=my_volume
+VOLUME_SIZE=20000000000     # 20GB
+SRC_DIR=
+DEST_DIR=
 
 #
 # Functions below implement the various components of the script
 #
 navolume_create(){
     echo "TODO - Create a new volume"
-    echo "ARGS: YAML=$YAML GPU=$GPU CPU=$CPU MEM=$MEM SYNC_FROM=$SYNC_FROM SYNC_TO=$SYNC_TO"
+    echo "ARGS: VOLUME_NAME=${VOLUME_NAME} VOLUME_SIZE=${VOLUME_SIZE} SRC_DIR=${SRC_DIR} DEST_DIR=${DEST_DIR}"
+}
+navolume_sync(){
+    echo "TODO - Sync files from source to dest"
+    echo "ARGS: VOLUME_NAME=${VOLUME_NAME} VOLUME_SIZE=${VOLUME_SIZE} SRC_DIR=${SRC_DIR} DEST_DIR=${DEST_DIR}"
+}
+navolume_list(){
+    echo "TODO - List volumes"
+    echo "ARGS: VOLUME_NAME=${VOLUME_NAME} VOLUME_SIZE=${VOLUME_SIZE} SRC_DIR=${SRC_DIR} DEST_DIR=${DEST_DIR}"
+}
+navolume_delete(){
+    echo "TODO - Delete volume"
+    echo "ARGS: VOLUME_NAME=${VOLUME_NAME} VOLUME_SIZE=${VOLUME_SIZE} SRC_DIR=${SRC_DIR} DEST_DIR=${DEST_DIR}"
 }
 
 #
@@ -27,40 +41,51 @@ navolume_create(){
 #
 PARAMS=""
 
+dehumanise() {
+    # https://stackoverflow.com/questions/26621647
+    for v in "${@:-$(</dev/stdin)}"; do
+        echo $v | awk \
+            'BEGIN{IGNORECASE = 1}
+            function printpower(n,b,p) {printf "%u\n", n*b^p; next}
+            /[0-9]$/{print $1;next};
+            /K(iB)?$/{printpower($1,  2, 10)};
+            /M(iB)?$/{printpower($1,  2, 20)};
+            /G(iB)?$/{printpower($1,  2, 30)};
+            /T(iB)?$/{printpower($1,  2, 40)};
+            /KB$/{    printpower($1, 10,  3)};
+            /MB$/{    printpower($1, 10,  6)};
+            /GB$/{    printpower($1, 10,  9)};
+            /TB$/{    printpower($1, 10, 12)}'
+    done
+}
+
 while (( "$#" )); do
-    case "$1" in
+    case "${1,,}" in
         create)
-            YAML=$2
-            shift 2
-            ;;
-        sync)
-            GPU=$2
-            shift 2
-            ;;
-        list)
-            CPU=$2
-            shift 2
-            ;;
-        delete)
-            MEM=$2
-            shift 2
-            ;;
-        -s|--sync)
-            SYNC_FROM=${SYNC_FROM}:${2}
-            SYNC_TO=${SYNC_TO}:${3}
+            RUN_COMMAND=navolume_create
+            VOLUME_NAME=$(dehumanise $2)
+            VOLUME_SIZE=$(dehumanise $3)
             shift 3
             ;;
-        --) # end argument parsing
-            shift
-            break
+        sync)
+            RUN_COMMAND=navolume_sync
+            VOLUME_NAME=$2
+            SRC_DIR=$3
+            DEST_DIR=$4
+            shift 4
             ;;
-        -*|--*=) # unsupported flags
-            echo "Error: Unsupported flag $1" >&2
+        list)
+            RUN_COMMAND=navolume_list
+            shift 1
+            ;;
+        delete)
+            RUN_COMMAND=navolume_delete
+            VOLUME_NAME=$2
+            shift 2
+            ;;
+        *) # unsupported option
+            echo "Error: Unsupported option $1" >&2
             exit 1
-            ;;
-        *) # preserve positional arguments
-            PARAM="$PARAMS $1"
-            shift
             ;;
     esac
 done
@@ -68,4 +93,4 @@ done
 # set positional arguments in their proper place
 eval set -- "$PARAMS"
 
-run_script
+$RUN_COMMAND
