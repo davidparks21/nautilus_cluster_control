@@ -6,7 +6,8 @@
 #
 
 # TODOs / Issues:
-#   - `navolume --anyparam` will cause the command line parsing to go into an infinite loop, fix this
+#   - same infinite loop issue as with narun
+#   - infinit loop with sync a b - should be an error
 
 #
 # Global script defaults
@@ -60,6 +61,7 @@ dehumanise() {
 }
 
 while (( "$#" )); do
+    echo $@
     case "${1,,}" in
         create)
             RUN_COMMAND=navolume_create
