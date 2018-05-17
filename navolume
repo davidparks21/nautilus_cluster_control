@@ -18,8 +18,8 @@ MEM=4GB
 #
 # Functions below implement the various components of the script
 #
-na_run_script(){
-    echo "TODO - Launch POD and connect to process"
+navolume_create(){
+    echo "TODO - Create a new volume"
     echo "ARGS: YAML=$YAML GPU=$GPU CPU=$CPU MEM=$MEM SYNC_FROM=$SYNC_FROM SYNC_TO=$SYNC_TO"
 }
 
@@ -69,4 +69,4 @@ done
 # set positional arguments in their proper place
 eval set -- "$PARAMS"
 
-na_run_script
+run_script
