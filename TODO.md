@@ -1,6 +1,7 @@
 # narun
 
 - Addd `na_run_script` function in `narun` bash script to launch the pod and connect to the process.
+- Create a default tensorflow docker image
 
 # naconnect
 
