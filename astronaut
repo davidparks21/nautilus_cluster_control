@@ -1,0 +1,27 @@
+#!/usr/bin/env python
+
+from __future__ import print_function, division
+import curses
+import argparse
+
+
+def main(stdscr):
+    stdscr.clear()
+
+    stdscr.addstr('Hello World!')
+
+    terminal_height = curses.LINES-1
+    terminal_width = curses.COLS-1
+
+    stdscr.refresh()
+    stdscr.getkey()
+    
+
+if __name__=='__main__':
+    desc = 'narun -- a simple utility for running a yaml file on nautilus'
+    parser = argparse.ArgumentParser(description=desc)
+    parser.add_argument('f', help='the pod/job config')
+    parser.add_argument('--cp', help='<copy from local>:<copy to pvc> before create')
+    parser.add_argument('--cpb', help='<copy from local>:<copy to pvc> before create and copy back when done')
+
+    curses.wrapper(main)
