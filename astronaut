@@ -2,26 +2,45 @@
 
 from __future__ import print_function, division
 import curses
+import yaml
 import argparse
+from subprocess import call, check_output
+
+def start_file(f):
+    return check_output(['kubectl', 'create', '-f', f])
+
+def obj_status():
+    None
+
+def obj_logs():
+    None
 
 
-def main(stdscr):
-    stdscr.clear()
-
-    stdscr.addstr('Hello World!')
-
+def main(stdscr, f, cp, cpb, loop):
     terminal_height = curses.LINES-1
     terminal_width = curses.COLS-1
 
+    stdscr.clear()
+    stdscr.addstr('Astronaut\n' + '-'*terminal_width + '\n')
+    stdscr.addstr('File:{}\n'.format(f))
+    stdscr.addstr('Starting....\r')
     stdscr.refresh()
+
+    stdscr.addstr(start_file(f) + '\n')
+
+
+
+
     stdscr.getkey()
-    
+
 
 if __name__=='__main__':
-    desc = 'narun -- a simple utility for running a yaml file on nautilus'
+    desc = 'narun -- a simple utility for running a yaml file on kuberentes'
     parser = argparse.ArgumentParser(description=desc)
     parser.add_argument('f', help='the pod/job config')
     parser.add_argument('--cp', help='<copy from local>:<copy to pvc> before create')
     parser.add_argument('--cpb', help='<copy from local>:<copy to pvc> before create and copy back when done')
+    parser.add_argument('--loop', help='how often to refresh run stats (seconds)')
+    args = parser.parse_args()
 
-    curses.wrapper(main)
+    curses.wrapper(main, args.f, args.cp, args.cpb, args.loop)
