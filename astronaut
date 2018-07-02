@@ -1,37 +1,121 @@
 #!/usr/bin/env python
 
 from __future__ import print_function, division
+import time
 import curses
 import yaml
 import argparse
 from subprocess import call, check_output
 
+class CopyToHelper:
+    @staticmethod
+    def container(vol_name):
+        return {
+            'name': 'copyto-helper',
+            'image': 'alpine/git',
+            'command': ['/bin/sh', '-c'],
+            'args': """
+                    while true
+                      do
+                        if [ -e transfer_complete ]; then
+                          mv /copyto/* /destdir
+                          break
+                        else 
+                          sleep 1
+                        fi
+                      done
+                    """,
+            'volumeMounts': [
+                {'name': 'copyto', 'mountPath':'/copyto'},
+                {'name': vol_name, 'mountPath': '/destdir'}
+            ]
+
+        }
+
+    @staticmethod
+    def volume():
+        return {'name':'copyto', 'emptyDir': {}}
+
+    @staticmethod
+    def insert_into_pod(pod, vol_name):
+        if 'initContainers' not in data['spec']:
+            pod['spec']['initContainers'] = []
+
+        get_c = lambda p: p['spec']['initContainters']
+        
+        if 'volumes' not in pod['spec']:
+            pod['spec']['volumes'] = []
+
+        get_v = lambda p: p['spec']['volumes']
+
+        return CopyToHelper._given_insert(pod, get_c, get_v, vol_name)
+
+    @staticmethod
+    def insert_into_job(job, vol_name):
+        None
+
+    @staticmethod
+    def _given_insert(data, get_c, get_v, vol_name):
+        get_c(data).append(CopyToHelper.container(vol_name))
+        get_v(data).append(CopyToHelper.volume())
+
+        return data
+        
+        
+
 def start_file(f):
     return check_output(['kubectl', 'create', '-f', f])
 
-def obj_status():
-    None
+def get_status(f):
+    return f + '1status' + str(time.time())
 
-def obj_logs():
-    None
+def get_logs(f):
+    return f + '1logs' + str(time.time())
 
 
-def main(stdscr, f, cp, cpb, loop):
+def main(main_scr, f, cp, cpb, loop):
+    # UI Startup
     terminal_height = curses.LINES-1
     terminal_width = curses.COLS-1
 
-    stdscr.clear()
-    stdscr.addstr('Astronaut\n' + '-'*terminal_width + '\n')
-    stdscr.addstr('File:{}\n'.format(f))
-    stdscr.addstr('Starting....\r')
-    stdscr.refresh()
-
-    stdscr.addstr(start_file(f) + '\n')
-
-
+    status_scr = curses.newwin(1, terminal_width, 3, 0)
+    logs_scr = curses.newwin(terminal_height-3, terminal_width, 4, 0)
+    
+    main_scr.clear()
+    main_scr.addstr('Astronaut\n' + '-'*terminal_width + '\n')
+    main_scr.addstr('File:{}\n'.format(f))
+    main_scr.refresh()
 
 
-    stdscr.getkey()
+    # User input option parsing
+    if cp:
+        with open(f, 'r') as fp:
+            data = yaml.load(fp)
+        
+        if data['kind']=='Job':
+            data = CopyToHelper.insert_into_job(data)
+        elif data['kind']=='Pod':
+            data = CopyToHelper.insert_into_pod(data)
+        else:
+            raise NotImplementedError('Only Job/Pod supported for --cp flag')
+
+        None
+    elif cpb:
+        raise NotImplementedError('--cpb not implemented, sorry!')
+
+
+    # UI Loop
+    scrs, funcs = [status_scr, logs_scr], [get_status, get_logs]
+
+    while True:
+        for scr, func in zip(scrs, funcs):
+            scr.clear()
+            scr.addstr(func(f))
+       
+        for scr in scrs:
+            scr.refresh()
+
+        time.sleep(loop)
 
 
 if __name__=='__main__':
@@ -40,7 +124,9 @@ if __name__=='__main__':
     parser.add_argument('f', help='the pod/job config')
     parser.add_argument('--cp', help='<copy from local>:<copy to pvc> before create')
     parser.add_argument('--cpb', help='<copy from local>:<copy to pvc> before create and copy back when done')
-    parser.add_argument('--loop', help='how often to refresh run stats (seconds)')
+    parser.add_argument('--loop', help='how often to refresh run stats (seconds)', type=int, default=5)
     args = parser.parse_args()
+
+    print(args.loop)
 
     curses.wrapper(main, args.f, args.cp, args.cpb, args.loop)
