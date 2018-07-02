@@ -1,0 +1,197 @@
+#!/usr/bin/env python
+
+from __future__ import print_function, division
+import time
+import curses
+import yaml
+import argparse
+from subprocess import call, check_output
+
+def start_file(f):
+    return check_output(['kubectl', 'create', '-f', f])
+
+def get_status(f, data):
+    t = data['kind']
+    name = data['metadata']['name']
+    lines = check_output(['kubectl', 'get', t]).decode('utf-8').split('\n')
+
+    status = 'unknown'
+    for l in lines:
+        if name in l:
+            status = l.split()[2]
+
+    return ['{} status: {}'.format(t, status)]
+
+def get_logs(f, data):
+    arg = data['metadata']['name']
+
+    try:
+        lines = check_output(['kubectl', 'logs', arg]).decode('utf-8').split('\n')
+    except Exception:
+        lines = ['Waiting on resource to start...']
+
+    return lines
+
+def copy_files(src, pod_name):
+    call(['kubectl',
+          'cp',
+          src,
+          '{}:/copyto'.format(pod_name),
+          '-c',
+          'copyto-helper'])
+
+    call(['touch', 'transfer_complete'])
+    call(['kubectl',
+          'cp',
+          src,
+          '{}:/copyto'.format(pod_name),
+          '-c',
+          'copyto-helper'])
+    call(['rm', 'transfer_complete'])
+
+def get_copy_info(data, cp):
+    src, vol_name, rel_path = cp.split(':')
+
+    return src, vol_name, rel_path
+
+def wait_for_copy_helper():
+    while True:
+        events = check_output(['kubectl', 'get', 'ev']).decode('utf-8').split('\n')
+        for e in events:
+            if 'copyto-helper' in e and 'Started container' in e:
+                return
+
+        time.sleep(1)
+
+def main(main_scr, f, cp, cpb, loop):
+    # UI Startup
+    terminal_height = curses.LINES-1
+    terminal_width = curses.COLS-1
+
+    status_scr = curses.newwin(1, terminal_width, 3, 0)
+    log_height = terminal_height-3
+    logs_scr = curses.newwin(log_height, terminal_width, 4, 0)
+
+    main_scr.clear()
+    main_scr.addstr('Astronaut v0.0.0.0.0.0...1 (hyper-pre-alpha-canary build) (ctrl-c to exit)\n' + '-'*terminal_width + '\n')
+    main_scr.addstr('File:{}\n'.format(f))
+    main_scr.refresh()
+
+
+    with open(f, 'r') as fp:
+        data = yaml.load(fp)
+    # User input option parsing
+    if cp:
+        src, vol_name, rel_path = get_copy_info(data, cp)
+
+        if data['kind']=='Job':
+            data = CopyToHelper.insert_into_job(data, vol_name, rel_path)
+        elif data['kind']=='Pod':
+            data = CopyToHelper.insert_into_pod(data, vol_name, rel_path)
+        else:
+            raise NotImplementedError('Only Job/Pod supported kuibfor --cp flag')
+
+        copy_mod_f_name = '{}-withcopy.yaml'.format(f.split('.')[0])
+        with open(copy_mod_f_name) as cpy_f:
+            yaml.dump(cpy_f)
+
+        f = copy_mod_f_name
+        start_file(f)
+
+        # we have to wait until copy-to-helper is ready
+        wait_for_copy_helper()
+
+        # copy files
+        copy_files(src, data['metadata']['name'])
+
+    elif cpb:
+        raise NotImplementedError('--cpb not implemented, sorry!')
+    else:
+        start_file(f)
+
+
+    # UI Loop
+    scrs = [status_scr, logs_scr]
+    funcs = [get_status, get_logs]
+    trailing_idx = [-1, -log_height]
+
+    while True:
+        for scr, func, idx in zip(scrs, funcs, trailing_idx):
+            scr.clear()
+            scr.addstr('\n'.join(func(f, data)[idx:]).strip())
+
+        for scr in scrs:
+            scr.refresh()
+
+        time.sleep(loop)
+
+if __name__=='__main__':
+    desc = 'narun -- a simple utility for running a yaml file on kuberentes'
+    parser = argparse.ArgumentParser(description=desc)
+    parser.add_argument('f', help='the pod/job config')
+    parser.add_argument('--cp', help='<copy from local>:<copy to vol>:<path> before create')
+    parser.add_argument('--cpb', help='<copy from local>:<copy to vol> before create and copy back when done')
+    parser.add_argument('--loop', help='how often to refresh run stats (seconds)', type=int, default=5)
+    args = parser.parse_args()
+
+    print(args.loop)
+
+    curses.wrapper(main, args.f, args.cp, args.cpb, args.loop)
+
+
+
+class CopyToHelper:
+    @staticmethod
+    def container(vol_name, rel_path):
+        return {
+            'name': 'copyto-helper',
+            'image': 'alpine/git',
+            'command': ['/bin/sh', '-c'],
+            'args': """
+                    while true
+                      do
+                        if [ -e copyto/transfer_complete ]; then
+                          rm /copyto/transfer_complete
+                          mv /copyto/* /destdir/{}
+                          break
+                        else
+                          sleep 1
+                        fi
+                      done
+                    """.format(rel_path),
+            'volumeMounts': [
+                {'name': 'copyto', 'mountPath':'/copyto'},
+                {'name': vol_name, 'mountPath': '/destdir'}
+            ]
+
+        }
+
+    @staticmethod
+    def volume():
+        return {'name':'copyto', 'emptyDir': {}}
+
+    @staticmethod
+    def insert_into_pod(pod, vol_name, rel_path):
+        if 'initContainers' not in pod['spec']:
+            pod['spec']['initContainers'] = []
+
+        get_c = lambda p: p['spec']['initContainters']
+
+        if 'volumes' not in pod['spec']:
+            pod['spec']['volumes'] = []
+
+        get_v = lambda p: p['spec']['volumes']
+
+        return CopyToHelper._given_insert(pod, get_c, get_v, vol_name, rel_path)
+
+    @staticmethod
+    def insert_into_job(job, vol_name, rel_path):
+        None
+
+    @staticmethod
+    def _given_insert(data, get_c, get_v, vol_name, rel_path):
+        get_c(data).append(CopyToHelper.container(vol_name, rel_path))
+        get_v(data).append(CopyToHelper.volume())
+
+        return data
+
