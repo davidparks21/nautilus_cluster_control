@@ -43,7 +43,7 @@ def copy_files(src, pod_name):
     call(['touch', 'transfer_complete'])
     call(['kubectl',
           'cp',
-          src,
+          'transfer_complete',
           '{}:/copyto'.format(pod_name),
           '-c',
           'copyto-helper'])
@@ -92,8 +92,8 @@ def main(main_scr, f, cp, cpb, loop):
             raise NotImplementedError('Only Job/Pod supported kuibfor --cp flag')
 
         copy_mod_f_name = '{}-withcopy.yaml'.format(f.split('.')[0])
-        with open(copy_mod_f_name) as cpy_f:
-            yaml.dump(cpy_f)
+        with open(copy_mod_f_name, 'w') as cpy_f:
+            yaml.dump(data, cpy_f)
 
         f = copy_mod_f_name
         start_file(f)
@@ -125,21 +125,6 @@ def main(main_scr, f, cp, cpb, loop):
 
         time.sleep(loop)
 
-if __name__=='__main__':
-    desc = 'narun -- a simple utility for running a yaml file on kuberentes'
-    parser = argparse.ArgumentParser(description=desc)
-    parser.add_argument('f', help='the pod/job config')
-    parser.add_argument('--cp', help='<copy from local>:<copy to vol>:<path> before create')
-    parser.add_argument('--cpb', help='<copy from local>:<copy to vol> before create and copy back when done')
-    parser.add_argument('--loop', help='how often to refresh run stats (seconds)', type=int, default=5)
-    args = parser.parse_args()
-
-    print(args.loop)
-
-    curses.wrapper(main, args.f, args.cp, args.cpb, args.loop)
-
-
-
 class CopyToHelper:
     @staticmethod
     def container(vol_name, rel_path):
@@ -147,10 +132,10 @@ class CopyToHelper:
             'name': 'copyto-helper',
             'image': 'alpine/git',
             'command': ['/bin/sh', '-c'],
-            'args': """
+            'args': ["""
                     while true
                       do
-                        if [ -e copyto/transfer_complete ]; then
+                        if [ -e /copyto/transfer_complete ]; then
                           rm /copyto/transfer_complete
                           mv /copyto/* /destdir/{}
                           break
@@ -158,7 +143,7 @@ class CopyToHelper:
                           sleep 1
                         fi
                       done
-                    """.format(rel_path),
+                    """.format(rel_path)],
             'volumeMounts': [
                 {'name': 'copyto', 'mountPath':'/copyto'},
                 {'name': vol_name, 'mountPath': '/destdir'}
@@ -175,7 +160,7 @@ class CopyToHelper:
         if 'initContainers' not in pod['spec']:
             pod['spec']['initContainers'] = []
 
-        get_c = lambda p: p['spec']['initContainters']
+        get_c = lambda p: p['spec']['initContainers']
 
         if 'volumes' not in pod['spec']:
             pod['spec']['volumes'] = []
@@ -194,4 +179,21 @@ class CopyToHelper:
         get_v(data).append(CopyToHelper.volume())
 
         return data
+
+if __name__=='__main__':
+    desc = 'narun -- a simple utility for running a yaml file on kuberentes'
+    parser = argparse.ArgumentParser(description=desc)
+    parser.add_argument('f', help='the pod/job config')
+    parser.add_argument('--cp', help='<copy from local>:<copy to vol>:<path> before create')
+    parser.add_argument('--cpb', help='<copy from local>:<copy to vol> before create and copy back when done')
+    parser.add_argument('--loop', help='how often to refresh run stats (seconds)', type=int, default=5)
+    args = parser.parse_args()
+
+    print(args.loop)
+
+    curses.wrapper(main, args.f, args.cp, args.cpb, args.loop)
+
+
+
+
 
