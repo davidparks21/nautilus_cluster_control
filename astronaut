@@ -8,9 +8,31 @@ import argparse
 from subprocess import call, check_output
 
 def start_file(f):
-    return check_output(['kubectl', 'create', '-f', f])
+    """Starts a file using kubectl create
 
-def get_status(f, data):
+    Args:
+        f (str): path to yaml file
+
+    Returns:
+        str: Value returned by kubectl create
+    """
+    return check_output(['kubectl', 'create', '-f', f]).decode('utf-8')
+
+def get_status(data):
+    """Gets the status of a resource using kubectl get
+
+    ---
+    NOTE: This func's signature and return value are set to be consistent
+          with other funcs when called in the main UI loop. If you change
+          one you need consider this when editing this method
+    ---
+
+    Args:
+        data (dict): yaml file
+
+    Returns:
+        list(str): current status of object
+    """
     t = data['kind']
     name = data['metadata']['name']
     lines = check_output(['kubectl', 'get', t]).decode('utf-8').split('\n')
@@ -22,7 +44,22 @@ def get_status(f, data):
 
     return ['{} status: {}'.format(t, status)]
 
-def get_logs(f, data):
+# TODO: add option to specify container
+def get_logs(data):
+    """Gets the console output of a resource using kubectl logs
+
+    ---
+    NOTE: This func's signature and return value are set to be consistent
+          with other funcs when called in the main UI loop. If you change
+          one you need consider this when editing this method
+    ---
+
+    Args:
+        data (dict): yaml file
+
+    Returns:
+        list(str): console output of the current object
+    """
     arg = data['metadata']['name']
 
     try:
@@ -33,6 +70,13 @@ def get_logs(f, data):
     return lines
 
 def copy_files(src, pod_name):
+    """Copys src to copyto-helper container using kubectl cp
+
+    Args:
+        src (str): file or dir to be copied
+        pod_name (str): pod/job that the container is running in
+    """
+
     call(['kubectl',
           'cp',
           src,
@@ -49,12 +93,22 @@ def copy_files(src, pod_name):
           'copyto-helper'])
     call(['rm', 'transfer_complete'])
 
-def get_copy_info(data, cp):
+def get_copy_info(cp):
+    """Parses copy info given by user
+
+    Args:
+        cp (str): input from --cp flag
+
+    Returns:
+        tuple(str,str,str): source, volume name, and relative path for copying
+    """
     src, vol_name, rel_path = cp.split(':')
 
     return src, vol_name, rel_path
 
 def wait_for_copy_helper():
+    """ A loop that blocks until the copyto-helper is ready"""
+    # TODO: add some breaking condition?
     while True:
         events = check_output(['kubectl', 'get', 'ev']).decode('utf-8').split('\n')
         for e in events:
@@ -64,6 +118,17 @@ def wait_for_copy_helper():
         time.sleep(1)
 
 def main(main_scr, f, cp, cpb, loop):
+    """Main UI method
+
+    Args;
+        main_scr (curses.window): main terminal window
+        f (str): yaml file
+        cp (str): the unparsed copy argument src:pod:relative_path
+        cpb (str): the unparsed copy back argument: (not implemented)
+        loop (int): the screen refresh rate in seconds
+    """
+
+
     # UI Startup
     terminal_height = curses.LINES-1
     terminal_width = curses.COLS-1
@@ -82,7 +147,7 @@ def main(main_scr, f, cp, cpb, loop):
         data = yaml.load(fp)
     # User input option parsing
     if cp:
-        src, vol_name, rel_path = get_copy_info(data, cp)
+        src, vol_name, rel_path = get_copy_info(cp)
 
         if data['kind']=='Job':
             data = CopyToHelper.insert_into_job(data, vol_name, rel_path)
@@ -118,7 +183,7 @@ def main(main_scr, f, cp, cpb, loop):
     while True:
         for scr, func, idx in zip(scrs, funcs, trailing_idx):
             scr.clear()
-            scr.addstr('\n'.join(func(f, data)[idx:]).strip())
+            scr.addstr('\n'.join(func(data)[idx:]).strip())
 
         for scr in scrs:
             scr.refresh()
@@ -181,15 +246,13 @@ class CopyToHelper:
         return data
 
 if __name__=='__main__':
-    desc = 'narun -- a simple utility for running a yaml file on kuberentes'
+    desc = 'astronaut -- a simple utility for running a yaml file on kuberentes'
     parser = argparse.ArgumentParser(description=desc)
     parser.add_argument('f', help='the pod/job config')
     parser.add_argument('--cp', help='<copy from local>:<copy to vol>:<path> before create')
     parser.add_argument('--cpb', help='<copy from local>:<copy to vol> before create and copy back when done')
     parser.add_argument('--loop', help='how often to refresh run stats (seconds)', type=int, default=5)
     args = parser.parse_args()
-
-    print(args.loop)
 
     curses.wrapper(main, args.f, args.cp, args.cpb, args.loop)
 
